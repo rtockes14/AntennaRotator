@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"name": "AntennaRotator",
+			"path": "."
+		}
+	],
+	"settings": {
+		"git.ignoreLimitWarning": true,
+		"files.associations": {
+			"cmath": "cpp"
+		}
+	}
+}

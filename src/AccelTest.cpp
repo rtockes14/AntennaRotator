@@ -154,7 +154,7 @@ void orientationTest(float currentElevation, float currentAzimuth)
         //Serial.println("Don't move -- elevation = 0");
         tiltingUp = false;
         tiltingDown = false;
-        delay(25);
+        //delay(25);
     }
     else 
     {
@@ -179,11 +179,11 @@ void orientationTest(float currentElevation, float currentAzimuth)
     panningLeft = false;
     panningRight = false;
 
-    // Determine whether difference in azimuth requires left or right pan
-    float rotation = get_shortest_rotation(currentAzimuth, satAzimuth);
+    //// Determine whether difference in azimuth requires left or right pan
+    //float rotation = get_shortest_rotation(currentAzimuth, satAzimuth);
 
     // TODO: REPLACE WITH ROTATION AND GETSHORTESTROTATION
-    if (rotation < 0)
+    if (currentAzimuth < 0)
     {
         panningLeft = true;
         panningRight = false;
@@ -194,7 +194,7 @@ void orientationTest(float currentElevation, float currentAzimuth)
         Serial.println(satAzimuth);
     }
     //if (satAzimuth > currentAzimuth)
-    if (rotation > 0)
+    if (currentAzimuth > 0)
     {
         panningRight = true;
         panningLeft = false;
@@ -204,7 +204,7 @@ void orientationTest(float currentElevation, float currentAzimuth)
         Serial.print("Sat Azimuth: ");
         Serial.println(satAzimuth);
     }
-    if (rotation > -5 && rotation < 5)
+    if (currentAzimuth > -10 && currentAzimuth < 10)
     {
         panningLeft = false;
         panningRight = false;
@@ -212,9 +212,22 @@ void orientationTest(float currentElevation, float currentAzimuth)
     // Start panning Left if not already panning TODO: LOGIC FOR ALREADY PANNING
     if ((panningLeft))
     {
+        
         digitalWrite(INPUT_1, HIGH);
         digitalWrite(INPUT_2, LOW);
-        analogWrite(ENABLE_A, 55); // pan
+        if (currentAzimuth > 50)
+        {
+            analogWrite(ENABLE_A, 100); // pan
+        }
+        else if (currentAzimuth <= 50 && currentAzimuth > 30)
+        {
+            analogWrite(ENABLE_A, 60); // pan
+        }
+        else 
+        {
+            analogWrite(ENABLE_A, 45); // pan
+        }
+        
         Serial.println("Currently Panning Left");
     }
     // Start panning Right if not already panning
@@ -222,7 +235,18 @@ void orientationTest(float currentElevation, float currentAzimuth)
     {
         digitalWrite(INPUT_1, LOW);
         digitalWrite(INPUT_2, HIGH);
-        analogWrite(ENABLE_A, 55); // pan
+        if (currentAzimuth > -50)
+        {
+            analogWrite(ENABLE_A, 100); // pan
+        }
+        else if (currentAzimuth <= -50 && currentAzimuth > -30)
+        {
+            analogWrite(ENABLE_A, 60); // pan
+        }
+        else 
+        {
+            analogWrite(ENABLE_A, 45); // pan
+        }
         Serial.println("Currently Panning Right");
     }
     // ===============================================================================================================================
@@ -451,11 +475,11 @@ void setup() {
 void loop() 
 {
     unsigned long currentMillis = millis(); // get the current time
+    
 
     if (Serial.available())
     {
         String jsonData = Serial.readString();
-
         parseJson(jsonData);
     }
 
@@ -472,14 +496,17 @@ void loop()
     
         float sensorReadings[10];
         int numberOfReadings = 10; 
+        float rotation;
         float sum = 0;
         for (int i = 0; i < numberOfReadings; i++)
         {
             sensorReadings[i] = (atan2(event.magnetic.y,event.magnetic.x) * 180 / PI);
-            sum += sensorReadings[i];
+            // Determine whether difference in azimuth requires left or right pan
+            rotation = get_shortest_rotation(sensorReadings[i], satAzimuth);
+            sum += rotation;
             delay(10);
         }
-        delay(100);
+        delay(25);
 
         float average = sum / numberOfReadings;
         float heading = average;
@@ -487,14 +514,14 @@ void loop()
         //heading = (atan2(Ym_off, Xm_off));
         //heading = heading * 180 / PI;
 
-        if (heading < 0)
-        {
-            heading = 360 + heading;
-        }
+        //if (heading < 0)
+        //{
+            //heading = 360 + heading;
+        //}
+        currentAzimuth = heading;
 
         IMU.readSensor();
-        //Serial.print(IMU.getAccelX_mss(),6);
-        //Serial.println(IMU.getAccelY_mss(),6);
+        
         float ax = IMU.getAccelX_mss();
         float ay = IMU.getAccelY_mss();
         float az = IMU.getAccelZ_mss();
@@ -508,45 +535,11 @@ void loop()
         // Print roll angle
         Serial.print("Roll: ");
         Serial.println(roll); 
-        //Serial.print("Compass Heading: ");
-        //Serial.print(heading);
-        //Serial.print("\t");
-        //Serial.println(currentAzimuth);
-
-        currentElevation = roll;
-
-        currentAzimuth = heading;
-
-        //if (mpu.update()) {
-            //static uint32_t prev_ms = millis();
-            //if (millis() > prev_ms + 100) {
-                //x = mpu.getMagX();
-                //y = mpu.getMagY();
-
-                ////elevation[currentIndex] = mpu.getRoll();
-                //Serial.print(mpu.getYaw(), 2);
-                //Serial.print("\t");
-                //Serial.println(mpu.getPitch(), 2);
-                ////Serial.print(mpu.getRoll(), 2);
-                //currentElevation = mpu.getRoll();
-                //Serial.print("Loop Elevation check:  ");
-                //Serial.println(currentElevation);
-                //////currentIndex = (currentIndex + 1) % 3;
-                //////float avgElevation = (elevation[0] + elevation[1] + elevation[2] + elevation[3] + elevation [4]) / 5.0;
-                //////Serial.print("Avgerage Elevation: ");
-                //////Serial.println(avgElevation);
-                //////currentElevation = avgElevation;
-                //////roll = currentElevation;
-                //Serial.println("mpu updated");
-
-                orientationTest(currentElevation, currentAzimuth);
-
-                //prev_ms = millis();
-            //}
-        //}
-
-
         
-            lcdPrint(heading);
+        currentElevation = roll;
+        
+        orientationTest(currentElevation, currentAzimuth);
+        
+        lcdPrint(heading);
     }
 }
