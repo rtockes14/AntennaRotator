@@ -39,6 +39,10 @@ const long interval = 1000;
 unsigned long lastReadTime = 0;
 unsigned long readInterval = 10;
 
+const float X_BIAS = -13.652010;
+const float Y_BIAS = -2.466551;
+const float Z_BIAS = -83.898040;
+
 //float currentHeading = 0;
 
 int status;
@@ -86,6 +90,7 @@ bool panningLeft = false;
 bool panningRight = false;
 bool alreadyTilting = false;
 bool alreadyPanning = false;
+bool flipped = true;
 
 //float desiredElevation = 0; // test elevation for control
 //float desiredHeading = 340; // test heading for control
@@ -95,35 +100,27 @@ float tolerance = 5;
 
 void rotateLeftThenRight()
 {
-    digitalWrite(INPUT_1, HIGH);
-    digitalWrite(INPUT_2, LOW);
-    digitalWrite(INPUT_3, HIGH);
-    digitalWrite(INPUT_4, LOW);
+    if (flipped)
+    {
+        digitalWrite(INPUT_1, HIGH);
+        digitalWrite(INPUT_2, LOW);
+        digitalWrite(INPUT_3, HIGH);
+        digitalWrite(INPUT_4, LOW);
 
-    analogWrite(ENABLE_A, 75);
-    analogWrite(ENABLE_B, 70);
+        analogWrite(ENABLE_A, 100);
+        analogWrite(ENABLE_B, 70);
+    }
+    else
+    {
+        digitalWrite(INPUT_1, LOW);
+        digitalWrite(INPUT_2, HIGH);
+        digitalWrite(INPUT_3, LOW);
+        digitalWrite(INPUT_4, HIGH);
 
-    delay(4000);
-
-    analogWrite(ENABLE_A, 0);
-    analogWrite(ENABLE_B, 0);
-
-    delay(5000);
-
-    digitalWrite(INPUT_1, LOW);
-    digitalWrite(INPUT_2, HIGH);
-    digitalWrite(INPUT_3, LOW);
-    digitalWrite(INPUT_4, HIGH);
-
-    analogWrite(ENABLE_A, 75);
-    analogWrite(ENABLE_B, 75);
-
-    delay(2000);
-
-    analogWrite(ENABLE_A, 0);
-    analogWrite(ENABLE_B, 0);
-
-    delay(5000);
+        analogWrite(ENABLE_A, 100);
+        analogWrite(ENABLE_B, 75);
+    }
+    flipped = !flipped;
 }
 
 float normalize_angle(double angle) {
@@ -143,7 +140,7 @@ float get_shortest_rotation(double current, double target)
     return normalize_angle(delta);  // Normalize the difference to [-180, 180]
 }
 
-void orientationTest(float currentElevation, float currentAzimuth)
+void orientationTest(float currentElevation, float rotation)
 {
     
     tiltingUp = false;
@@ -183,7 +180,7 @@ void orientationTest(float currentElevation, float currentAzimuth)
     //float rotation = get_shortest_rotation(currentAzimuth, satAzimuth);
 
     // TODO: REPLACE WITH ROTATION AND GETSHORTESTROTATION
-    if (currentAzimuth < 0)
+    if (rotation < 0)
     {
         panningLeft = true;
         panningRight = false;
@@ -194,7 +191,7 @@ void orientationTest(float currentElevation, float currentAzimuth)
         Serial.println(satAzimuth);
     }
     //if (satAzimuth > currentAzimuth)
-    if (currentAzimuth > 0)
+    if (rotation > 0)
     {
         panningRight = true;
         panningLeft = false;
@@ -204,7 +201,7 @@ void orientationTest(float currentElevation, float currentAzimuth)
         Serial.print("Sat Azimuth: ");
         Serial.println(satAzimuth);
     }
-    if (currentAzimuth > -10 && currentAzimuth < 10)
+    if (rotation > -10 && rotation < 10)
     {
         panningLeft = false;
         panningRight = false;
@@ -215,11 +212,11 @@ void orientationTest(float currentElevation, float currentAzimuth)
         
         digitalWrite(INPUT_1, HIGH);
         digitalWrite(INPUT_2, LOW);
-        if (currentAzimuth > 50)
+        if (rotation < -50)
         {
             analogWrite(ENABLE_A, 100); // pan
         }
-        else if (currentAzimuth <= 50 && currentAzimuth > 30)
+        else if (rotation >= -50 && rotation < 30)
         {
             analogWrite(ENABLE_A, 60); // pan
         }
@@ -235,11 +232,11 @@ void orientationTest(float currentElevation, float currentAzimuth)
     {
         digitalWrite(INPUT_1, LOW);
         digitalWrite(INPUT_2, HIGH);
-        if (currentAzimuth > -50)
+        if (rotation > 50)
         {
             analogWrite(ENABLE_A, 100); // pan
         }
-        else if (currentAzimuth <= -50 && currentAzimuth > -30)
+        else if (rotation <= 50 && rotation > 30)
         {
             analogWrite(ENABLE_A, 60); // pan
         }
@@ -498,18 +495,20 @@ void loop()
         int numberOfReadings = 10; 
         float rotation;
         float sum = 0;
-        for (int i = 0; i < numberOfReadings; i++)
-        {
-            sensorReadings[i] = (atan2(event.magnetic.y,event.magnetic.x) * 180 / PI);
+        //for (int i = 0; i < numberOfReadings; i++)
+        //{
+            //sensorReadings[i] = (atan2(event.magnetic.y,event.magnetic.x) * 180 / PI);
+            heading = (atan2(event.magnetic.y - Y_BIAS,event.magnetic.x - X_BIAS) * 180 / PI);
             // Determine whether difference in azimuth requires left or right pan
-            rotation = get_shortest_rotation(sensorReadings[i], satAzimuth);
-            sum += rotation;
-            delay(10);
-        }
+            //rotation = get_shortest_rotation(sensorReadings[i], satAzimuth);
+            rotation = get_shortest_rotation(heading, satAzimuth);
+            //sum += rotation;
+            //delay(10);
+        //}
         delay(25);
 
-        float average = sum / numberOfReadings;
-        float heading = average;
+        //float average = sum / numberOfReadings;
+        //float heading = average;
         //float heading = (atan2(event.magnetic.y,event.magnetic.x) * 180 / PI);
         //heading = (atan2(Ym_off, Xm_off));
         //heading = heading * 180 / PI;
@@ -518,7 +517,7 @@ void loop()
         //{
             //heading = 360 + heading;
         //}
-        currentAzimuth = heading;
+        //currentAzimuth = heading;
 
         IMU.readSensor();
         
@@ -538,7 +537,7 @@ void loop()
         
         currentElevation = roll;
         
-        orientationTest(currentElevation, currentAzimuth);
+        orientationTest(currentElevation, rotation);
         
         lcdPrint(heading);
     }

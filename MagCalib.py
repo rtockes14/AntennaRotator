@@ -29,11 +29,11 @@ import matplotlib.pyplot as plt
 
 
 # GLOBAL VARIABLES
-SER_PORT = 'COM20'  # Serial port
-SER_BAUD = 115200  # Serial baud rate
+SER_PORT = 'COM5'  # Serial port
+SER_BAUD = 9600  # Serial baud rate
 SAMPLE_FREQ = 115  # Frequency to record magnetometer readings at [Hz]
-T_SAMPLE = 10  # Total time to read mangetometer readings [sec]
-OUTPUT_FILENAME = 'mag-readings.txt'  # Output data file name
+T_SAMPLE = 60  # Total time to read mangetometer readings [sec]
+OUTPUT_FILENAME = 'mag-readings-2.txt'  # Output data file name
 
 
 
@@ -78,7 +78,7 @@ class SerialPort:
         # while self.ser.in_waiting:
         bytesToRead = self.ser.readline()
         
-        decodedMsg = bytesToRead.decode('utf-8')
+        decodedMsg = bytesToRead.decode("ISO-8859-1").strip()
 
         if clean_end == True:
             decodedMsg = decodedMsg.strip('\r').strip('\n')  # Strip extra chars at the end
@@ -171,18 +171,24 @@ fig_rawReadings = plt.figure()
 ax_rawReadings = fig_rawReadings.add_subplot(111, projection='3d')
 RawDataPlot = PlotPoints3D(fig_rawReadings, ax_rawReadings, live_plot=False)
 
+time.sleep(5)
 
 # Take a few readings to 'flush' out bad ones
 for _ in range(4):
-    data = Arduino.Read().split(',')  # Split into separate values
+    data = Arduino.Read()  # Split into separate values
+    print(data)
     time.sleep(0.25)
 
 
 measurements = np.zeros((N, 3), dtype='float')
+#time.sleep(2)
 
 for currMeas in range(N):
     data = Arduino.Read().split(',')  # Split into separate values
+    #data = Arduino.Read()
+    #time.sleep(5)
 
+    #print(data)
     mx, my, mz = float(data[0]), float(data[1]), float(data[2])  # Convert to floats, [uT]
     
     print('[%0.4f, %0.4f, %0.4f] uT  |  Norm: %0.4f uT  |  %0.1f %% Complete.' % 
